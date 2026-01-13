@@ -5,3 +5,4 @@ logs/
 models/
 #data/
 /models
+churn-api_v1.tar
