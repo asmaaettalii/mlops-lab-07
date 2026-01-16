@@ -19,6 +19,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 # ---------------------------------------------------------------------------
+# Imports MLflow
+# ---------------------------------------------------------------------------
+import mlflow
+import mlflow.sklearn
+from mlflow.tracking import MlflowClient
+
+# ---------------------------------------------------------------------------
 # Chemins et constantes globales
 # ---------------------------------------------------------------------------
 
@@ -28,6 +35,12 @@ MODELS_DIR: Final[Path] = ROOT / "models"
 REGISTRY_DIR: Final[Path] = ROOT / "registry"
 CURRENT_MODEL_PATH: Final[Path] = REGISTRY_DIR / "current_model.txt"
 METADATA_PATH: Final[Path] = REGISTRY_DIR / "metadata.json"
+
+# ---------------------------------------------------------------------------
+# Nom du modèle pour MLflow Model Registry
+# ---------------------------------------------------------------------------
+
+MODEL_NAME: Final[str] = "churn_model"
 
 # ---------------------------------------------------------------------------
 # Fonctions pour la gestion des métadonnées
@@ -109,6 +122,40 @@ def main(version: str = "v1", seed: int = 42, gate_f1: float = 0.6) -> None:
     model_path = MODELS_DIR / model_filename
     joblib.dump(model_pipeline, model_path)
 
+    # -----------------------------------------------------------------------
+    # Bloc MLflow pour instrumentation
+    # -----------------------------------------------------------------------
+    mlflow.set_tracking_uri("http://127.0.0.1:5000")
+    mlflow.set_experiment("mlops-lab-01")
+
+    with mlflow.start_run(run_name=f"train-{version}") as run:
+        run_id = run.info.run_id
+
+        # Paramètres
+        mlflow.log_param("version", version)
+        mlflow.log_param("seed", seed)
+        mlflow.log_param("gate_f1", gate_f1)
+
+        # Métriques
+        mlflow.log_metrics(metrics)
+
+        # Tags / métadonnées
+        mlflow.set_tag("data_file", DATA_PATH.name)
+        mlflow.set_tag("model_file", model_filename)
+
+        # Artefact : modèle joblib
+        mlflow.log_artifact(str(model_path), artifact_path="exported_models")
+
+        # Modèle dans Model Registry
+        mlflow.sklearn.log_model(
+            sk_model=model_pipeline,
+            artifact_path="model",
+            registered_model_name=MODEL_NAME,
+        )
+
+    # -----------------------------------------------------------------------
+    # Métadonnées locales / déploiement minimal
+    # -----------------------------------------------------------------------
     entry: dict[str, Any] = {
         "model_file": model_filename,
         "version": version,
@@ -141,4 +188,4 @@ def main(version: str = "v1", seed: int = 42, gate_f1: float = 0.6) -> None:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    main() 
+    main()
