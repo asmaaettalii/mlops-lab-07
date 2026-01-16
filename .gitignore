@@ -3,7 +3,10 @@ __pycache__/
 *.pyc
 logs/
 models/
-#data/
+
 /models
+mlflow/
+mlruns/
+artifacts/
+dvc_storage/
 churn-api_v1.tar
-mlflow
